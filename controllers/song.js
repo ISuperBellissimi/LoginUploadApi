@@ -33,8 +33,8 @@ const newSong = (req, res, next) => {
   console.log(req.loggedUser);
   // controllo sia artista, altrimenti restituisco error
   // TODO: cambiare da isArtista a is_artista
-  if (!req.loggedUser.isArtista){
-    res.status(403).json({success:false, message:'Not Authorized'});
+  if (!req.loggedUser.is_artista){
+    return res.status(403).json({success:false, message:'Not Authorized'});
   }
 
   let song = req.body.song;
@@ -54,22 +54,82 @@ const newSong = (req, res, next) => {
 
 // delete all songs by artist
 const deleteSongs = (req, res, next) => {
-  res.json({message: "DELETE songs"});
+  if (!req.loggedUser.is_artista){
+    return res.status(403).json({success:false, message:'Not Authorized'});
+  }
+  // utente autenticato ed artista
+  Song.deleteMany({artist: req.loggedUser.id}, function(err){
+    if (err) return res.json({success: false, message: "Error deleting all songs"});
+    return res.json({success: true, message: "All songs deleted"});
+
+  })
 };
 
-// get one song
+// get one song by id
 const getSong = (req, res, next) => {
-  res.json({message: "GET song " + req.params.title });
+  let song_id = req.params.song_id;
+  Song.findOne({id: song_id}, function(err, song){
+    if (err) return res.json({success: false, message: "Song not found, is the id correct?"})
+
+    return res.json({success: true, song: song})
+  })
+
 };
 
-// modify one song
+// modify one song by id
 const modifySong = (req, res, next) => {
-  res.json({message: "Modify song " + req.params.title });
+  if (!req.loggedUser.is_artista){
+    return res.status(403).json({success:false, message:'Not Authorized'});
+  }
+
+  // prendo id della canzone dal corpo della richiesta
+  let song = req.body.song;
+  let song_id = song.id;
+
+  // id dell'artista presente nel token
+  let token_user_id = req.loggedUser.id;
+  // confronto con l'id dell'artista della canzone
+  Song.findOne({id: song_id}, function(err, song){
+    if (err) return res.json({success: false, message: "Song not found, is the id correct?"});
+    if (token_user_id != song.artist){
+      // qualcuno sta cercando di modificare la canzone di un altro
+      return res.json({success: false, message: "Not Authorized"});
+    }
+
+    // qui tutto regolare, posso modificare la canzone
+    Song.findByIdAndUpdate(song_id, song, function(err){
+      if (err) return res.json({success: false, message: "Uncatched error"});
+      return res.json({success: true, message: "Song modified"});
+    });
+  });
 };
 
-// delete one song
+
+// delete one song by id
+
 const deleteSong = (req, res, next) => {
-  res.json({message: "DELETE song " + req.params.title });
+  // solo un artista può eliminare una sua canzone
+  if (!req.loggedUser.is_artista){
+    return res.status(403).json({success:false, message:'Not Authorized'});
+  }
+
+  // prendo id della canzone dal corpo della richiesta
+  let song_id = req.params.song_id;
+  let token_user_id = req.loggedUser.id;
+
+  Song.findOne({id: song_id}, function(err, song){
+    if (err) return res.json({success: false, message: "Song not found, is the id correct?"});
+    if (token_user_id != song.artist){
+      // qualcuno sta cercando di modificare la canzone di un altro
+      return res.json({success: false, message: "Not Authorized"});
+    }
+
+    // qui tutto regolare, posso modificare la canzone
+    Song.findByIdAndRemove(song_id, song, function(err){
+      if (err) return res.json({success: false, message: "Uncatched error"});
+      return res.json({success: true, message: "Song deleted"});
+    });
+  });
 };
 
 module.exports = {
