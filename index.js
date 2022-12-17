@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require("mongoose");
 require("dotenv").config();
 const app = express();
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
 
 const uri = process.env.PRIVATE_KEY;
 
@@ -32,6 +34,10 @@ const chatRoutes = require('./routes/chat'); //to import the routes/chat.js
 app.use('/song', songRoutes);
 app.use('/auth', authRoutes);
 app.use('/chat', chatRoutes);
+
+io.on('connection', () =>{
+    console.log('a user is connected')
+})
 
 
 app.listen(3000, () =>
